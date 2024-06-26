@@ -9,7 +9,7 @@
         name="title"
         class="input h-10" 
         placeholder="Search by title" 
-        value=" {{ request('title')}} ">
+        value="{{ request('title') }}">
     <input type="hidden" 
         name="filter" 
         value=" {{ request('filter')}} ">
