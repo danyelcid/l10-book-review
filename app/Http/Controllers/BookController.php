@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\Book;
+//use Illuminate\Support\Facades\Cache; // Only when using facades
 
 class BookController extends Controller
 {
@@ -25,13 +26,24 @@ class BookController extends Controller
             'popular_last_6months'=> $books->popularLast6Month(),
             'best_rated_last_month'=> $books->bestRatedLastMonth(),
             'best_rated_last_6months'=> $books->bestRatedLast6Month(),
-            default => $books->popular()->bestRated()
+            default => $books->latest()->withReviewsCount()->withAvgRating()
        };
                     
-                    
-        $books = $books->get()            ;
+        //$books = $books->get();
 
+        /** Static Facade use
+         * 
+         * $books = Cache::remember('books', 3600, fn()=> $books->get());
+         * 
+         **/
 
+        /**
+         * Global function cache using filters and search parameters as the key
+         */
+        $cacheKey = 'books:'. $filter . ':' . $title;
+
+        $books =  $books->paginate();
+        //$books = cache()->remember($cacheKey, 3600, fn()=> $books->paginate());
 
        return view('books.index', ['books' => $books]);
     }
@@ -55,15 +67,19 @@ class BookController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(Book $book)
+    public function show(int $id)
     {
-        return view(
-                    'books.show', 
-                    ['book' => $book->load([
-                        'reviews' => fn($query) => $query->latest()
-                        ])
-                    ]
-                );
+        $cacheKey = 'book:' . $id;
+
+        $book = cache()->remember(
+            $cacheKey,
+            3600, 
+            fn() => Book::with([
+            'reviews' => fn($query) => $query->latest()
+            ])->withReviewsCount()->withAvgRating()->findOrFail($id)
+        );
+        //cache()->forget($cacheKey);
+        return view('books.show', ['book' => $book]);
     }
 
     /**
